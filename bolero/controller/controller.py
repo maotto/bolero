@@ -44,7 +44,7 @@ class Controller(Base):
     config : dict
         Configuration dictionary for the controller. The environment and the
         behavior search can either be specified in this dictionary or can
-        be passed as arguments. In addition, parameters that configurate the
+        be passed as arguments. In addition, parameters that configure the
         controller can be passed here in the 'Controller' subsection.
 
     environment : Environment
@@ -62,6 +62,7 @@ class Controller(Base):
             config = {}
         else:
             config = from_dict(config)
+        self._config = config  # save for usage in subclasses
 
         if environment is not None:
             self.environment = environment
@@ -85,12 +86,17 @@ class Controller(Base):
         self.outputs = np.zeros(self.n_outputs)
 
         if "record_trajectories" in config.keys() + kwargs.keys():
-            warnings.warn("record_trajectories is deprecated. Please use record_inputs.")
+            warnings.warn("record_trajectories is deprecated. "
+                          "Please use record_inputs.")
             if "record_inputs" in config.keys() + kwargs.keys():
-                raise ValueError("Specifying record_inputs and record_trajectories (deprecated) not allowed")
+                raise ValueError(
+                    "Specifying record_inputs and record_trajectories "
+                    "(deprecated) not allowed")
             else:
-                config["record_inputs"] = config.pop("record_trajectories", False)
-                kwargs["record_inputs"] = kwargs.pop("record_trajectories", False)
+                config["record_inputs"] = config.pop("record_trajectories",
+                                                     False)
+                kwargs["record_inputs"] = kwargs.pop("record_trajectories",
+                                                     False)
 
         self.__dict__.update(kwargs)
         self._set_attribute(config, "n_episodes", 10)
@@ -124,9 +130,12 @@ class Controller(Base):
 
     def __get_inputs_bw_compatible(self):
         # just for backwards compatibility
-        warnings.warn("property 'trajectories_' is deprecated. Please use 'inputs_'")
+        warnings.warn("property 'trajectories_' is deprecated. "
+                      "Please use 'inputs_'")
         return self.inputs_
-    trajectories_ = property(__get_inputs_bw_compatible, doc="inputs to the environment (outputs of the behavior)")
+    trajectories_ = property(__get_inputs_bw_compatible,
+                             doc="inputs to the environment (outputs of the "
+                                 "behavior)")
 
     def _set_attribute(self, config, name, default):
         value = config.get("Controller", {}).get(name, default)
@@ -229,7 +238,8 @@ class Controller(Base):
 
         self.episode_cnt += 1
 
-        if self.do_test and self.episode_cnt % self.n_episodes_before_test == 0:
+        if self.do_test and \
+                self.episode_cnt % self.n_episodes_before_test == 0:
             self.test_results_.append(
                 self._perform_test(meta_parameter_keys, meta_parameters))
 
@@ -238,8 +248,8 @@ class Controller(Base):
 
         return feedbacks
 
-    def episode_with(self, behavior, meta_parameter_keys=[],
-                     meta_parameters=[], record=True):
+    def episode_with(self, behavior, meta_parameter_keys=(),
+                     meta_parameters=(), record=True):
         """Execute a behavior in the environment.
 
         Parameters
@@ -332,7 +342,7 @@ class AveragingEpisodesController(Controller):
         function with signature: (environment, int repetition_index) -> None
         Prepares the environment for a specific repetition.
     """
-    def __init__(self, config={}, environment=None, behavior_search=None,
+    def __init__(self, config=None, environment=None, behavior_search=None,
                  num_repetitions_to_average=10,
                  feedback_averaging_function=None,
                  environment_preparation_function=None,
@@ -348,11 +358,11 @@ class AveragingEpisodesController(Controller):
         if feedback_averaging_function is None:
             feedback_averaging_function = self.median_of_sums
 
-        self._set_attribute(config, "num_repetitions_to_average",
+        self._set_attribute(self._config, "num_repetitions_to_average",
                             num_repetitions_to_average)
-        self._set_attribute(config, "feedback_averaging_function",
+        self._set_attribute(self._config, "feedback_averaging_function",
                             feedback_averaging_function)
-        self._set_attribute(config, "environment_preparation_function",
+        self._set_attribute(self._config, "environment_preparation_function",
                             environment_preparation_function)
 
     @staticmethod
@@ -373,8 +383,8 @@ class AveragingEpisodesController(Controller):
         return np.median([np.sum(feedbacks_)
                           for feedbacks_ in list_of_feedbacks])
 
-    def episode_with(self, behavior, meta_parameter_keys=[],
-                     meta_parameters=[], record=False):
+    def episode_with(self, behavior, meta_parameter_keys=(),
+                     meta_parameters=(), record=False):
         """Execute a behavior in the environment.
 
         Parameters
@@ -434,13 +444,13 @@ class ContextualController(Controller):
     * test_contexts (array-like) - the upper-level policy will be evaluated in
       these contexts
     """
-    def __init__(self, config={}, environment=None, behavior_search=None,
+    def __init__(self, config=None, environment=None, behavior_search=None,
                  **kwargs):
         super(ContextualController, self).__init__(
             config, environment, behavior_search, **kwargs)
 
-        self._set_attribute(config, "record_contexts", False)
-        self._set_attribute(config, "test_contexts", None)
+        self._set_attribute(self._config, "record_contexts", False)
+        self._set_attribute(self._config, "test_contexts", None)
 
         if self.record_contexts:
             self.contexts_ = []
